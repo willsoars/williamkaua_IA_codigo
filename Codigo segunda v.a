@@ -37,6 +37,7 @@ def transE(training, testing, validation):
                                  additional_filter_triples=[training.mapped_triples, validation.mapped_triples])
     
     plot_er(result)
+    #plot_loss(result)   #ativar este comentario plota as percas por epoca do embedding
     print(f"Mean Reciprocal Rank: {metrics.get_metric('mean_reciprocal_rank')}")
     return metrics.get_metric('mean_reciprocal_rank')
 
