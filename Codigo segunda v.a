@@ -1,0 +1,84 @@
+import pandas as pd
+import random
+import numpy as np
+import networkx as nx
+import operator
+from pykeen.pipeline import pipeline
+from pykeen.evaluation import RankBasedEvaluator
+from pykeen.pipeline import plot_er
+from pykeen.triples import TriplesFactory
+import matplotlib.pyplot as plt
+from scipy.stats import pearsonr
+
+#lembro que em uma das infromações do classroom osenhor disse que so podiam usar duas bibliotecas, mas essas são obrigatorias em graph embedding
+# Função para gerar os triples e salvar em um arquivo
+def get_triples(subjects, predicates, objects):
+    df = pd.DataFrame({'subject': subjects, 'predicate': predicates, 'object': objects})
+    df.to_csv('dataset11.tsv', sep='\t', index=False, header=False)
+    
+    triples_factory = TriplesFactory.from_labeled_triples(df[['subject', 'predicate', 'object']].values)
+    return triples_factory
+
+# Função para configurar e treinar o modelo TransE
+def transE(training, testing, validation):
+    result = pipeline(
+        model='TransE',
+        loss="softplus",
+        training=training,
+        testing=testing,
+        validation=validation,
+        model_kwargs=dict(embedding_dim=12),  # Embedding dimension
+        optimizer_kwargs=dict(lr=0.1),  # Learning rate
+        training_kwargs=dict(num_epochs=100, use_tqdm_batch=False),  # Epochs
+    )
+
+    evaluator = RankBasedEvaluator()
+    metrics = evaluator.evaluate(result.model, testing.mapped_triples, 
+                                 additional_filter_triples=[training.mapped_triples, validation.mapped_triples])
+    
+    plot_er(result)
+    print(f"Mean Reciprocal Rank: {metrics.get_metric('mean_reciprocal_rank')}")
+    return metrics.get_metric('mean_reciprocal_rank')
+
+# Função para preparar o grafo
+def prepare_graph(triples):
+    G = nx.Graph()
+    for subj, rel, obj in triples:
+        G.add_edge(subj, obj, label=rel)
+    nx.draw(G, with_labels = True)
+    plt.show()
+    return G
+
+# Função para calcular a similaridade entre dois grafos
+def graph_similarity(graph1, graph2):
+    try:
+        ged = nx.graph_edit_distance(graph1, graph2)
+        return ged
+    except Exception as e:
+        print(f"Erro ao calcular a distância de edição do grafo: {e}")
+        return None
+
+# Função para gerar triples de maneira eficiente e sem redundância
+def generate_triples(num_samples=12):
+    subjects = [random.choice(['a','b','c','d','e','f','g','h']) for _ in range(num_samples)]
+    objects = [random.choice(['A','B','C','D','E','F']) for _ in range(num_samples)]
+    predicates = [random.choice(['I','II','III']) for _ in range(num_samples)]
+    return subjects, predicates, objects
+
+# Função principal para executar o experimento
+def run_experiment():
+    Base_triples = generate_triples()
+    triples_factory = get_triples(*Base_triples)
+    Graph0 = prepare_graph(triples_factory.triples)
+    Emb_0 = transE(triples_factory, triples_factory, triples_factory)
+
+    # Realizando as comparações para as próximas iterações
+    
+    # Realizando plot
+    plt.xlabel("x axis")
+    plt.ylabel("y axis")
+    plt.show()
+
+# Executa o experimento
+if __name__ == "__main__":
+    run_experiment()
